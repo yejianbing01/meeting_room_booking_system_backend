@@ -6,12 +6,17 @@ import {
   Inject,
   Query,
   UnauthorizedException,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { RegisterUserDto } from './dto/register-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { RequireLogin, UserInfo } from 'src/custom.decorater';
+import { UserDetailVo } from './vo/user-info.vo';
+import { UpdateUserPasswordDto } from './dto/update-user-password.dto';
 
 @Controller('user')
 export class UserController {
@@ -166,5 +171,38 @@ export class UserController {
     } catch (e) {
       throw new UnauthorizedException('token 已失效，请重新登录');
     }
+  }
+
+  @Get('info')
+  @RequireLogin()
+  async info(@UserInfo('userId') userId: number) {
+    const user = await this.userService.findUserDetailById(userId);
+    if (!user) {
+      throw new HttpException(
+        '用户登录信息异常，请重新登录',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    const vo = new UserDetailVo();
+    vo.id = user.id;
+    vo.email = user.email;
+    vo.username = user.username;
+    vo.headPic = user.headPic;
+    vo.phoneNumber = user.phoneNumber;
+    vo.nickName = user.nickName;
+    vo.createTime = user.createTime;
+    vo.isFrozen = user.isFrozen;
+
+    return vo;
+  }
+
+  @Post(['update_password', 'admin/update_password'])
+  @RequireLogin()
+  async updatePassword(
+    @UserInfo('userId') userId: number,
+    @Body() passwordDto: UpdateUserPasswordDto,
+  ) {
+    console.log(passwordDto);
+    return 'success';
   }
 }

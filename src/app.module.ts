@@ -46,7 +46,7 @@ import { PermissionGuard } from './permission.guard';
           password: configService.get('mysql_server_password'),
           database: configService.get('mysql_server_database'),
           synchronize: true,
-          logging: true,
+          logging: false,
           entities: [Permission, Role, User],
           poolSize: 10,
           connectorPackage: 'mysql2',

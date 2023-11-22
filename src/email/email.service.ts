@@ -2,6 +2,12 @@ import { ConfigService } from '@nestjs/config';
 import { Injectable } from '@nestjs/common';
 import { Transporter, createTransport } from 'nodemailer';
 
+interface SendMailProps {
+  to: string;
+  subject: string;
+  html: string;
+}
+
 @Injectable()
 export class EmailService {
   transporter: Transporter;
@@ -18,11 +24,11 @@ export class EmailService {
     });
   }
 
-  async sendMail({ to, subject, html }) {
+  async sendMail({ to, subject, html }: SendMailProps) {
     await this.transporter.sendMail({
       from: {
         name: '会议室预定系统',
-        address: this.configService.get('nodemailer_auth_user'),
+        address: this.configService.get('nodemailer_auth_user') || '',
       },
       to,
       subject,

@@ -20,7 +20,7 @@ export interface JwtUserData {
 
 declare module 'express' {
   interface Request {
-    user: JwtUserData;
+    user?: JwtUserData;
   }
 }
 

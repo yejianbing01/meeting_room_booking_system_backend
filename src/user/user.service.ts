@@ -15,6 +15,7 @@ import { Role } from './entities/role.entity';
 import { Permission } from './entities/permission.entity';
 import { LoginUserDto } from './dto/login-user.dto';
 import { LoginUserVo } from './vo/login-user.vo';
+import { UpdateUserPasswordDto } from './dto/update-user-password.dto';
 
 @Injectable()
 export class UserService {
@@ -135,7 +136,7 @@ export class UserService {
       isFrozen: user.isFrozen,
       isAdmin: user.isAdmin,
       roles: user.roles.map((item) => item.name),
-      permissions: user.roles.reduce((arr, item) => {
+      permissions: user.roles.reduce((arr: Permission[], item) => {
         item.permissions.forEach((permission) => {
           if (arr.indexOf(permission) === -1) {
             arr.push(permission);
@@ -157,12 +158,16 @@ export class UserService {
       relations: ['roles', 'roles.permissions'],
     });
 
+    if (!user) {
+      throw new HttpException(`不存在 id=${id} 的用户`, HttpStatus.BAD_REQUEST);
+    }
+
     return {
       id: user.id,
       username: user.username,
       isAdmin: user.isAdmin,
       roles: user.roles.map((item) => item.name),
-      permissions: user.roles.reduce((arr, item) => {
+      permissions: user.roles.reduce((arr: Permission[], item) => {
         item.permissions.forEach((permission) => {
           if (arr.indexOf(permission) === -1) {
             arr.push(permission);
@@ -171,5 +176,40 @@ export class UserService {
         return arr;
       }, []),
     };
+  }
+
+  async findUserDetailById(id: number) {
+    const user = await this.userRepository.findOne({ where: { id } });
+    return user;
+  }
+
+  async updatePassword(id: number, passwordDto: UpdateUserPasswordDto) {
+    const captcha = await this.redisService.get(
+      `update_password_captcha_${passwordDto.email}`,
+    );
+
+    if (!captcha) {
+      throw new HttpException('验证码已失效', HttpStatus.BAD_REQUEST);
+    }
+
+    if (passwordDto.captcha !== captcha) {
+      throw new HttpException('验证码不正确', HttpStatus.BAD_REQUEST);
+    }
+
+    const foundUser = await this.userRepository.findOneBy({ id });
+
+    if (!foundUser) {
+      throw new HttpException(`不存在 id=${id} 的用户`, HttpStatus.BAD_REQUEST);
+    }
+
+    foundUser.password = md5(passwordDto.password);
+
+    try {
+      await this.userRepository.save(foundUser);
+      return '密码修改成功';
+    } catch (e) {
+      this.logger.error(e, UserService);
+      return '密码修改失败';
+    }
   }
 }
