@@ -5,7 +5,7 @@ import {
   Injectable,
   Logger,
 } from '@nestjs/common';
-import { Repository } from 'typeorm';
+import { Like, Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { RegisterUserDto } from './dto/register-user.dto';
@@ -179,11 +179,6 @@ export class UserService {
     };
   }
 
-  async findUserDetailById(id: number) {
-    const user = await this.userRepository.findOne({ where: { id } });
-    return user;
-  }
-
   async updatePassword(id: number, passwordDto: UpdateUserPasswordDto) {
     const captcha = await this.redisService.get(
       `update_password_captcha_${passwordDto.email}`,
@@ -247,5 +242,60 @@ export class UserService {
       this.logger.error(e, UserService);
       return '用户信息修改成功';
     }
+  }
+
+  async freezeUserById(id: number) {
+    const user = await this.userRepository.findOneBy({ id });
+    if (!user) {
+      throw new HttpException(`不存在 id=${id} 的用户`, HttpStatus.BAD_REQUEST);
+    }
+    user.isFrozen = true;
+    await this.userRepository.save(user);
+  }
+
+  async findUserDetailById(id: number) {
+    const user = await this.userRepository.findOne({ where: { id } });
+    return user;
+  }
+
+  async findUsersByPage(
+    pageNo: number,
+    pageSize: number,
+    username: string,
+    nickName: string,
+    email: string,
+  ) {
+    const skipCount = (pageNo - 1) * pageSize;
+    const condition: Record<string, any> = {};
+    if (username) {
+      condition.username = Like(`%${username}%`);
+    }
+    if (nickName) {
+      condition.nickName = Like(`%${nickName}%`);
+    }
+    if (email) {
+      condition.email = Like(`%${email}%`);
+    }
+
+    const [users, totalCount] = await this.userRepository.findAndCount({
+      select: [
+        'id',
+        'username',
+        'nickName',
+        'email',
+        'phoneNumber',
+        'isFrozen',
+        'headPic',
+        'createTime',
+      ],
+      skip: Math.max(skipCount, 0),
+      take: pageSize,
+      where: condition,
+    });
+
+    return {
+      users,
+      totalCount,
+    };
   }
 }
