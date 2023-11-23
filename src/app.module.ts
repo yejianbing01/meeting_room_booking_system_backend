@@ -13,12 +13,16 @@ import { JwtModule } from '@nestjs/jwt';
 import { APP_GUARD } from '@nestjs/core';
 import { LoginGuard } from './login.guard';
 import { PermissionGuard } from './permission.guard';
+import { BookingModule } from './booking/booking.module';
+import { MeetingRoomModule } from './meeting-room/meeting-room.module';
 
 @Module({
   imports: [
     UserModule,
     RedisModule,
     EmailModule,
+    BookingModule,
+    MeetingRoomModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: 'src/.env',
