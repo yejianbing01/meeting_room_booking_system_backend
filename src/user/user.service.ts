@@ -75,7 +75,7 @@ export class UserService {
   }
 
   async register(user: RegisterUserDto) {
-    const captcha = await this.redisService.get(`captcha_${user.email}`);
+    const captcha = await this.redisService.get(user.email);
 
     if (!captcha) {
       throw new HttpException('验证码已失效', HttpStatus.BAD_REQUEST);
@@ -167,6 +167,7 @@ export class UserService {
       id: user.id,
       username: user.username,
       isAdmin: user.isAdmin,
+      email: user.email,
       roles: user.roles.map((item) => item.name),
       permissions: user.roles.reduce((arr: Permission[], item) => {
         item.permissions.forEach((permission) => {
@@ -179,26 +180,26 @@ export class UserService {
     };
   }
 
-  async updatePassword(id: number, passwordDto: UpdateUserPasswordDto) {
-    const captcha = await this.redisService.get(
-      `update_password_captcha_${passwordDto.email}`,
-    );
+  async updatePassword(updatePasswordDto: UpdateUserPasswordDto) {
+    const captcha = await this.redisService.get(updatePasswordDto.email);
 
     if (!captcha) {
       throw new HttpException('验证码已失效', HttpStatus.BAD_REQUEST);
     }
 
-    if (passwordDto.captcha !== captcha) {
+    if (updatePasswordDto.captcha !== captcha) {
       throw new HttpException('验证码不正确', HttpStatus.BAD_REQUEST);
     }
 
-    const foundUser = await this.userRepository.findOneBy({ id });
+    const foundUser = await this.userRepository.findOneBy({
+      username: updatePasswordDto.username,
+    });
 
-    if (!foundUser) {
-      throw new HttpException(`不存在 id=${id} 的用户`, HttpStatus.BAD_REQUEST);
+    if (!foundUser || foundUser.email !== updatePasswordDto.email) {
+      throw new HttpException(`用户名或邮箱错误`, HttpStatus.BAD_REQUEST);
     }
 
-    foundUser.password = md5(passwordDto.password);
+    foundUser.password = md5(updatePasswordDto.password);
 
     try {
       await this.userRepository.save(foundUser);
@@ -210,9 +211,7 @@ export class UserService {
   }
 
   async update(id: number, updateUserDto: UpdateUserDto) {
-    const captcha = await this.redisService.get(
-      `update_user_captcha_${updateUserDto.email}`,
-    );
+    const captcha = await this.redisService.get(updateUserDto.email);
 
     if (!captcha) {
       throw new HttpException('验证码已失效', HttpStatus.BAD_REQUEST);
